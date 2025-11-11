@@ -45,7 +45,10 @@ class PlanificadorAgent(BaseAgent):
         Usuario ID: {usuario_id}
         
         Descompón en subtareas concretas que puedan ser ejecutadas por agentes especializados.
-        Devuelve ÚNICAMENTE un JSON con esta estructura:
+        
+        IMPORTANTE: Responde SOLO con un objeto JSON válido, sin formato markdown, sin bloques de código, sin ```json ni ```. Solo el JSON puro.
+        
+        Formato JSON requerido:
         {{
             "subtareas": [
                 {{"id": 1, "tipo": "calcular_balance", "descripcion": "...", "agente": "Ejecutor", "prioridad": "alta"}},

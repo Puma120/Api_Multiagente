@@ -202,7 +202,15 @@ class KnowledgeBaseAgent(BaseAgent):
         3. Sugerencias de optimización
         4. Alertas tempranas
         
-        Formato JSON.
+        IMPORTANTE: Responde SOLO con un objeto JSON válido, sin formato markdown, sin bloques de código, sin ```json ni ```. Solo el JSON puro.
+        
+        Formato JSON requerido:
+        {{
+            "insights": ["insight 1", "insight 2", "insight 3"],
+            "comparaciones": {{}},
+            "sugerencias": ["sugerencia 1", "sugerencia 2"],
+            "alertas": []
+        }}
         """
         
         response = self.generate_with_ai(prompt, temperature=0.5)
@@ -234,14 +242,33 @@ class KnowledgeBaseAgent(BaseAgent):
         - Estacionalidad
         - Tendencias recientes
         
-        Devuelve predicciones con intervalos de confianza.
-        Formato JSON.
+        IMPORTANTE: Responde SOLO con un objeto JSON válido, sin formato markdown, sin bloques de código, sin ```json ni ```. Solo el JSON puro.
+        
+        Formato JSON requerido:
+        {{
+            "predicciones": [
+                {{"mes": 1, "gasto_estimado": 0, "confianza": "alta/media/baja"}},
+                {{"mes": 2, "gasto_estimado": 0, "confianza": "alta/media/baja"}},
+                {{"mes": 3, "gasto_estimado": 0, "confianza": "alta/media/baja"}}
+            ],
+            "tendencia_general": "descripción de la tendencia",
+            "factores_considerados": ["factor 1", "factor 2"]
+        }}
         """
         
         response = self.generate_with_ai(prompt, temperature=0.3)
         
+        try:
+            prediccion = json.loads(response)
+        except:
+            prediccion = {
+                "predicciones": [],
+                "tendencia_general": "Datos insuficientes para predicción precisa",
+                "factores_considerados": []
+            }
+        
         return {
             "status": "prediction_completed",
-            "prediccion": response,
+            "prediccion": prediccion,
             "meses_futuros": meses_futuros
         }

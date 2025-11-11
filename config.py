@@ -19,7 +19,7 @@ GEMINI_MODELS = {
     "ejecutor": "gemini-2.5-flash",      # Balance para cálculos
     "notificador": "gemini-2.0-flash",   # Rápido para alertas
     "interfaz": "gemini-2.0-flash",      # Rápido para UI
-    "knowledge_base": "gemini-2.5-pro",  # Potente para análisis histórico
+    "knowledge_base": "gemini-2.5-flash",  # Flash para análisis histórico
     "monitor": "gemini-2.0-flash"        # Rápido para supervisión
 }
 

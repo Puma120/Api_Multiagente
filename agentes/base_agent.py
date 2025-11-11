@@ -77,10 +77,22 @@ class BaseAgent:
                     temperature=temperature,
                 )
             )
-            return response.text
+            # Limpiar formato markdown de la respuesta
+            text = response.text.strip()
+            
+            # Remover bloques de código markdown si existen
+            if text.startswith("```json"):
+                text = text[7:]  # Remover ```json
+            elif text.startswith("```"):
+                text = text[3:]  # Remover ```
+            
+            if text.endswith("```"):
+                text = text[:-3]  # Remover ```
+            
+            return text.strip()
         except Exception as e:
-            logger.error(f"❌ Error en generación AI [{self.name}]: {str(e)}")
-            return f"Error: {str(e)}"
+            logger.error(f"Error al generar con IA: {str(e)}")
+            return "{}"
     
     def get_history(self) -> List[Dict[str, Any]]:
         """

@@ -421,10 +421,37 @@ async def analizar_balance(request: AnalisisRequest, db: Session = Depends(get_d
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     
-    # Solicitar análisis usando protocolo ACP
+    # Obtener transacciones del período
+    fecha_desde = datetime.utcnow() - timedelta(days=request.periodo_dias)
+    transacciones = db.query(Transaccion).filter(
+        Transaccion.usuario_id == request.usuario_id,
+        Transaccion.fecha >= fecha_desde
+    ).all()
+    
+    # Calcular totales
+    ingresos_totales = sum(t.monto for t in transacciones if t.tipo == TipoTransaccion.INGRESO)
+    gastos_totales = sum(t.monto for t in transacciones if t.tipo == TipoTransaccion.GASTO)
+    
+    # Preparar datos por categoría
+    gastos_por_categoria = {}
+    for t in transacciones:
+        if t.tipo == TipoTransaccion.GASTO and t.categoria:
+            cat = t.categoria.value
+            gastos_por_categoria[cat] = gastos_por_categoria.get(cat, 0) + t.monto
+    
+    # Solicitar análisis usando protocolo ACP con datos reales
     resultado = ejecutor.calculate_balance({
         "usuario_id": request.usuario_id,
-        "periodo_dias": request.periodo_dias
+        "periodo_dias": request.periodo_dias,
+        "datos_reales": {
+            "ingresos_totales": float(ingresos_totales),
+            "gastos_totales": float(gastos_totales),
+            "balance": float(ingresos_totales - gastos_totales),
+            "total_transacciones": len(transacciones),
+            "gastos_por_categoria": gastos_por_categoria,
+            "ingreso_mensual": float(usuario.ingreso_mensual)
+        },
+        "tiene_datos": len(transacciones) > 0
     })
     
     return {
@@ -443,8 +470,37 @@ async def analizar_presupuestos(request: AnalisisRequest, db: Session = Depends(
     if not ejecutor:
         raise HTTPException(status_code=503, detail="Agente Ejecutor no disponible")
     
+    # Verificar usuario
+    usuario = db.query(Usuario).filter(Usuario.id == request.usuario_id).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    # Obtener presupuestos del mes actual
+    mes_actual = datetime.utcnow().month
+    anio_actual = datetime.utcnow().year
+    
+    presupuestos = db.query(Presupuesto).filter(
+        Presupuesto.usuario_id == request.usuario_id,
+        Presupuesto.mes == mes_actual,
+        Presupuesto.anio == anio_actual
+    ).all()
+    
+    # Convertir a formato para el agente
+    presupuestos_data = []
+    for p in presupuestos:
+        porcentaje = (p.monto_gastado / p.monto_limite * 100) if p.monto_limite > 0 else 0
+        presupuestos_data.append({
+            "categoria": p.categoria.value,
+            "limite": float(p.monto_limite),
+            "gastado": float(p.monto_gastado),
+            "porcentaje": round(porcentaje, 2)
+        })
+    
+    # Pasar datos reales al agente
     resultado = ejecutor.verify_budgets({
-        "usuario_id": request.usuario_id
+        "usuario_id": request.usuario_id,
+        "presupuestos_reales": presupuestos_data,
+        "tiene_datos": len(presupuestos_data) > 0
     })
     
     return {
