@@ -1,26 +1,26 @@
-# 🤖 Sistema Multiagente de Finanzas Personales Inteligentes
+# Sistema Multiagente de Finanzas Personales Inteligentes
 
 Sistema avanzado de gestión financiera personal que utiliza múltiples agentes de IA (Google Gemini) trabajando en colaboración mediante protocolos de comunicación estandarizados.
 
-## 👥 Datos del Equipo
+## Datos del Proyecto
 
-- **Proyecto**: Sistema Multiagente de Finanzas Personales
+- **Nombre**: Sistema Multiagente de Finanzas Personales
 - **Tecnologías**: FastAPI, PostgreSQL, Google Gemini AI, SQLAlchemy
 - **Fecha**: Noviembre 2025
 
-## 📋 Introducción
+## Introducción
 
 Este sistema implementa un enfoque multiagente para la gestión de finanzas personales, donde cada agente cumple un rol específico y se comunica con otros mediante protocolos estandarizados. El sistema utiliza modelos de IA de Google Gemini para proporcionar análisis inteligente, recomendaciones personalizadas y alertas proactivas.
 
 ### Objetivos Principales
 
-- ✅ Gestión automática y colaborativa de finanzas personales
-- ✅ Análisis inteligente mediante IA (Google Gemini)
-- ✅ Comunicación estructurada entre agentes usando protocolos definidos
-- ✅ API REST completa para integración con frontend
-- ✅ Almacenamiento persistente en PostgreSQL (Render)
+- Gestión automática y colaborativa de finanzas personales
+- Análisis inteligente mediante IA (Google Gemini)
+- Comunicación estructurada entre agentes usando protocolos definidos
+- API REST completa para integración con frontend
+- Almacenamiento persistente en PostgreSQL (Render)
 
-## 🏗️ Arquitectura Multiagente y Protocolos
+## Arquitectura Multiagente y Protocolos
 
 ### Agentes del Sistema
 
@@ -67,7 +67,7 @@ Este sistema implementa un enfoque multiagente para la gestión de finanzas pers
 - **Ejemplo**: Knowledge Base retorna datos con esquema validado
 - **Archivo**: `protocolos/mcp_protocol.py`
 
-## 🔄 Flujos de Comunicación Principales
+## Flujos de Comunicación Principales
 
 ### Flujo 1: Análisis Financiero Completo
 ```
@@ -130,7 +130,7 @@ Usuario → FastAPI → Knowledge Base (MCP)
 **Protocolo MCP**: Datos estandarizados y validados
 **Protocolo ACP**: Intercambio estructurado para análisis
 
-## 💻 Desarrollo de la Solución
+## Desarrollo de la Solución
 
 ### Estructura del Proyecto
 
@@ -209,7 +209,7 @@ Protocolos_tarea/
 - recomendaciones, analisis_ia
 ```
 
-## 🚀 Instalación y Configuración
+## Instalación y Configuración
 
 ### 1. Clonar el Repositorio
 ```bash
@@ -240,7 +240,7 @@ cp .env.example .env
 
 Editar `.env` y agregar:
 ```env
-DATABASE_URL=postgresql://finanzas_zz74_user:OY8LbDEk5eUbY9qJWtuRwnTy956vEOV0@dpg-d498208dl3ps73fr5cq0-a.oregon-postgres.render.com/finanzas_zz74
+DATABASE_URL=postgresql:...
 GOOGLE_API_KEY=tu_api_key_de_google_ai_studio
 ```
 
@@ -255,7 +255,7 @@ La API estará disponible en: `http://localhost:8000`
 
 Documentación interactiva: `http://localhost:8000/docs`
 
-## 🧪 Pruebas
+## Pruebas y Uso de la API
 
 ### Pruebas con Postman
 
@@ -311,27 +311,716 @@ GET /dashboard/1               # Agente Interfaz (AGUI)
 GET /alertas?usuario_id=1
 ```
 
-### Endpoints Principales
+## Documentación de Endpoints
 
-| Método | Endpoint | Descripción | Protocolo |
-|--------|----------|-------------|-----------|
-| GET | `/` | Info del sistema | - |
-| GET | `/health` | Estado de salud | - |
-| POST | `/usuarios` | Crear usuario | - |
-| GET | `/usuarios` | Listar usuarios | - |
-| POST | `/transacciones` | Crear transacción | A2A |
-| GET | `/transacciones` | Listar transacciones | - |
-| POST | `/presupuestos` | Crear presupuesto | ANP |
-| GET | `/presupuestos` | Listar presupuestos | - |
-| GET | `/alertas` | Listar alertas | - |
-| POST | `/analisis/balance` | Analizar balance | ACP |
-| POST | `/analisis/presupuestos` | Verificar presupuestos | ACP |
-| POST | `/analisis/completo` | Análisis completo | ANP |
-| POST | `/recomendaciones` | Obtener recomendaciones | MCP |
-| GET | `/dashboard/{id}` | Dashboard completo | AGUI |
-| GET | `/monitor/status` | Estado del sistema | - |
+### Endpoints de Sistema
 
-## 📊 Ejemplo de Uso Completo
+#### GET /
+Obtiene información general del sistema y estado de los agentes.
+
+**Respuesta:**
+```json
+{
+  "app": "Sistema Multiagente de Finanzas Personales",
+  "version": "1.0.0",
+  "status": "online",
+  "agentes": {
+    "planificador": "activo",
+    "ejecutor": "activo",
+    "notificador": "activo",
+    "interfaz": "activo",
+    "knowledge_base": "activo",
+    "monitor": "activo"
+  },
+  "protocolos": ["A2A", "ACP", "ANP", "AGUI", "MCP"]
+}
+```
+
+#### GET /health
+Verifica el estado de salud del sistema completo.
+
+**Respuesta:**
+```json
+{
+  "status": "healthy",
+  "database": "connected",
+  "agents": "all_active",
+  "timestamp": "2025-11-11T10:30:00.000Z"
+}
+```
+
+#### GET /monitor/status
+Obtiene métricas del sistema multiagente.
+
+**Respuesta:**
+```json
+{
+  "health": {
+    "database": "healthy",
+    "agents": "operational"
+  },
+  "metrics": {
+    "uptime": 3600,
+    "total_messages": 150
+  },
+  "timestamp": "2025-11-11T10:30:00.000Z"
+}
+```
+
+#### GET /monitor/agentes
+Obtiene estado detallado de todos los agentes.
+
+**Respuesta:**
+```json
+{
+  "agentes": {
+    "planificador": {
+      "activo": true,
+      "historial": 25
+    },
+    "ejecutor": {
+      "activo": true,
+      "historial": 42
+    },
+    "notificador": {
+      "activo": true,
+      "historial": 18
+    },
+    "interfaz": {
+      "activo": true,
+      "historial": 30
+    },
+    "knowledge_base": {
+      "activo": true,
+      "historial": 35
+    },
+    "monitor": {
+      "activo": true,
+      "historial": 50
+    }
+  }
+}
+```
+
+### Endpoints de Usuarios
+
+#### POST /usuarios
+Crea un nuevo usuario en el sistema.
+
+**Body (JSON):**
+```json
+{
+  "nombre": "Juan Pérez",
+  "email": "juan@email.com",
+  "ingreso_mensual": 50000.0,
+  "objetivo_ahorro": 10000.0
+}
+```
+
+**Validaciones:**
+- `nombre`: string, mínimo 1 carácter, máximo 100
+- `email`: string, mínimo 1 carácter, máximo 100, único
+- `ingreso_mensual`: float, mayor o igual a 0
+- `objetivo_ahorro`: float, mayor o igual a 0
+
+**Respuesta (201 Created):**
+```json
+{
+  "id": 1,
+  "nombre": "Juan Pérez",
+  "email": "juan@email.com",
+  "ingreso_mensual": 50000.0,
+  "objetivo_ahorro": 10000.0,
+  "creado_en": "2025-11-11T10:30:00.000Z"
+}
+```
+
+**Errores:**
+- 400: Email ya registrado
+
+#### GET /usuarios
+Lista todos los usuarios registrados.
+
+**Respuesta:**
+```json
+[
+  {
+    "id": 1,
+    "nombre": "Juan Pérez",
+    "email": "juan@email.com",
+    "ingreso_mensual": 50000.0,
+    "objetivo_ahorro": 10000.0,
+    "creado_en": "2025-11-11T10:30:00.000Z"
+  }
+]
+```
+
+#### GET /usuarios/{usuario_id}
+Obtiene un usuario específico por ID.
+
+**Parámetros:**
+- `usuario_id` (path): integer
+
+**Respuesta:**
+```json
+{
+  "id": 1,
+  "nombre": "Juan Pérez",
+  "email": "juan@email.com",
+  "ingreso_mensual": 50000.0,
+  "objetivo_ahorro": 10000.0,
+  "creado_en": "2025-11-11T10:30:00.000Z"
+}
+```
+
+**Errores:**
+- 404: Usuario no encontrado
+
+### Endpoints de Transacciones
+
+#### POST /transacciones
+Crea una nueva transacción. Si es un gasto, actualiza automáticamente el presupuesto correspondiente y genera alertas si se excede el 80% del límite.
+
+**Body (JSON):**
+```json
+{
+  "usuario_id": 1,
+  "tipo": "GASTO",
+  "categoria": "ALIMENTACION",
+  "monto": 1500.0,
+  "descripcion": "Supermercado mensual",
+  "fecha": "2025-11-11T10:00:00.000Z"
+}
+```
+
+**Valores permitidos:**
+- `tipo`: "INGRESO" | "GASTO"
+- `categoria`: "ALIMENTACION" | "TRANSPORTE" | "ENTRETENIMIENTO" | "VIVIENDA" | "SERVICIOS" | "SALUD" | "EDUCACION" | "OTROS"
+
+**Validaciones:**
+- `usuario_id`: integer, debe existir
+- `tipo`: enum TipoTransaccion
+- `categoria`: enum CategoriaGasto (opcional)
+- `monto`: float, mayor a 0
+- `descripcion`: string (opcional)
+- `fecha`: datetime (opcional, por defecto fecha actual)
+
+**Respuesta (201 Created):**
+```json
+{
+  "id": 1,
+  "usuario_id": 1,
+  "tipo": "GASTO",
+  "categoria": "ALIMENTACION",
+  "monto": 1500.0,
+  "descripcion": "Supermercado mensual",
+  "fecha": "2025-11-11T10:00:00.000Z"
+}
+```
+
+**Protocolo usado:** A2A (notifica al Ejecutor si se debe generar alerta)
+
+**Errores:**
+- 404: Usuario no encontrado
+
+#### GET /transacciones
+Lista transacciones con filtros opcionales.
+
+**Query Parameters:**
+- `usuario_id` (optional): integer
+- `tipo` (optional): "INGRESO" | "GASTO"
+- `categoria` (optional): enum CategoriaGasto
+- `dias` (optional): integer, default 30
+
+**Ejemplo:** `/transacciones?usuario_id=1&tipo=GASTO&dias=90`
+
+**Respuesta:**
+```json
+[
+  {
+    "id": 1,
+    "usuario_id": 1,
+    "tipo": "GASTO",
+    "categoria": "ALIMENTACION",
+    "monto": 1500.0,
+    "descripcion": "Supermercado mensual",
+    "fecha": "2025-11-11T10:00:00.000Z"
+  },
+  {
+    "id": 2,
+    "usuario_id": 1,
+    "tipo": "INGRESO",
+    "categoria": null,
+    "monto": 50000.0,
+    "descripcion": "Salario mensual",
+    "fecha": "2025-11-01T00:00:00.000Z"
+  }
+]
+```
+
+### Endpoints de Presupuestos
+
+#### POST /presupuestos
+Crea un nuevo presupuesto para una categoría y período específico.
+
+**Body (JSON):**
+```json
+{
+  "usuario_id": 1,
+  "categoria": "ALIMENTACION",
+  "monto_limite": 5000.0,
+  "mes": 11,
+  "anio": 2025
+}
+```
+
+**Validaciones:**
+- `usuario_id`: integer, debe existir
+- `categoria`: enum CategoriaGasto
+- `monto_limite`: float, mayor a 0
+- `mes`: integer, entre 1 y 12
+- `anio`: integer, mayor o igual a 2020
+
+**Respuesta (201 Created):**
+```json
+{
+  "id": 1,
+  "usuario_id": 1,
+  "categoria": "ALIMENTACION",
+  "monto_limite": 5000.0,
+  "monto_gastado": 0.0,
+  "mes": 11,
+  "anio": 2025,
+  "porcentaje_usado": 0.0
+}
+```
+
+**Protocolo usado:** ANP (negociación de distribución de recursos)
+
+**Errores:**
+- 404: Usuario no encontrado
+- 400: Ya existe presupuesto para esta categoría y período
+
+#### GET /presupuestos
+Lista presupuestos con filtros opcionales.
+
+**Query Parameters:**
+- `usuario_id` (optional): integer
+- `mes` (optional): integer
+- `anio` (optional): integer
+
+**Ejemplo:** `/presupuestos?usuario_id=1&mes=11&anio=2025`
+
+**Respuesta:**
+```json
+[
+  {
+    "id": 1,
+    "usuario_id": 1,
+    "categoria": "ALIMENTACION",
+    "monto_limite": 5000.0,
+    "monto_gastado": 3800.0,
+    "mes": 11,
+    "anio": 2025,
+    "porcentaje_usado": 76.0
+  },
+  {
+    "id": 2,
+    "usuario_id": 1,
+    "categoria": "TRANSPORTE",
+    "monto_limite": 3000.0,
+    "monto_gastado": 1200.0,
+    "mes": 11,
+    "anio": 2025,
+    "porcentaje_usado": 40.0
+  }
+]
+```
+
+#### GET /presupuestos/{presupuesto_id}
+Obtiene un presupuesto específico por ID.
+
+**Parámetros:**
+- `presupuesto_id` (path): integer
+
+**Respuesta:**
+```json
+{
+  "id": 1,
+  "usuario_id": 1,
+  "categoria": "ALIMENTACION",
+  "monto_limite": 5000.0,
+  "monto_gastado": 3800.0,
+  "mes": 11,
+  "anio": 2025,
+  "porcentaje_usado": 76.0
+}
+```
+
+**Errores:**
+- 404: Presupuesto no encontrado
+
+### Endpoints de Alertas
+
+#### GET /alertas
+Lista alertas con filtros opcionales.
+
+**Query Parameters:**
+- `usuario_id` (optional): integer
+- `estado` (optional): "PENDIENTE" | "LEIDA" | "ARCHIVADA"
+- `nivel` (optional): "INFO" | "WARNING" | "CRITICAL"
+
+**Ejemplo:** `/alertas?usuario_id=1&estado=PENDIENTE`
+
+**Respuesta:**
+```json
+[
+  {
+    "id": 1,
+    "usuario_id": 1,
+    "nivel": "WARNING",
+    "estado": "PENDIENTE",
+    "titulo": "Presupuesto cerca del límite",
+    "mensaje": "Has gastado el 85% de tu presupuesto en Alimentación",
+    "creado_en": "2025-11-11T10:30:00.000Z"
+  }
+]
+```
+
+#### PATCH /alertas/{alerta_id}/marcar-leida
+Marca una alerta como leída.
+
+**Parámetros:**
+- `alerta_id` (path): integer
+
+**Respuesta:**
+```json
+{
+  "status": "success",
+  "message": "Alerta marcada como leída"
+}
+```
+
+**Errores:**
+- 404: Alerta no encontrada
+
+### Endpoints de Análisis con IA
+
+#### POST /analisis/balance
+Analiza el balance financiero del usuario usando el Agente Ejecutor con datos reales de la base de datos.
+
+**Body (JSON):**
+```json
+{
+  "usuario_id": 1,
+  "periodo_dias": 30
+}
+```
+
+**Validaciones:**
+- `usuario_id`: integer, debe existir
+- `periodo_dias`: integer, entre 1 y 365, default 30
+
+**Respuesta:**
+```json
+{
+  "status": "success",
+  "analisis": {
+    "status": "balance_calculated",
+    "resultado": {
+      "ingresos_totales": 50000.0,
+      "gastos_totales": 28500.0,
+      "balance": 21500.0,
+      "total_transacciones": 15,
+      "gastos_por_categoria": {
+        "ALIMENTACION": 8500.0,
+        "TRANSPORTE": 5000.0,
+        "ENTRETENIMIENTO": 3000.0,
+        "SERVICIOS": 12000.0
+      },
+      "analisis_ia": {
+        "evaluacion_general": "Balance positivo. Estás ahorrando el 43% de tus ingresos mensuales.",
+        "puntos_criticos": [
+          "Los servicios representan el 42% del gasto total",
+          "La alimentación está dentro de lo esperado"
+        ],
+        "recomendaciones": [
+          "Considera renegociar contratos de servicios para reducir costos fijos",
+          "Mantén el control en alimentación y transporte"
+        ],
+        "tendencia": "positiva"
+      }
+    },
+    "protocol_used": "ACP"
+  },
+  "protocol_used": "ACP",
+  "agent": "Ejecutor"
+}
+```
+
+**Protocolo usado:** ACP (comunicación estructurada con Knowledge Base)
+
+**Errores:**
+- 404: Usuario no encontrado
+- 503: Agente Ejecutor no disponible
+
+#### POST /analisis/presupuestos
+Verifica el estado de todos los presupuestos del usuario usando el Agente Ejecutor con datos reales.
+
+**Body (JSON):**
+```json
+{
+  "usuario_id": 1,
+  "periodo_dias": 30
+}
+```
+
+**Validaciones:**
+- `usuario_id`: integer, debe existir
+- `periodo_dias`: integer, entre 1 y 365, default 30
+
+**Respuesta:**
+```json
+{
+  "status": "success",
+  "analisis": {
+    "status": "budgets_verified",
+    "resultado": {
+      "presupuestos": [
+        {
+          "categoria": "ALIMENTACION",
+          "limite": 5000.0,
+          "gastado": 3800.0,
+          "porcentaje": 76.0,
+          "estado": "cerca"
+        },
+        {
+          "categoria": "TRANSPORTE",
+          "limite": 3000.0,
+          "gastado": 3200.0,
+          "porcentaje": 106.67,
+          "estado": "excedido"
+        },
+        {
+          "categoria": "ENTRETENIMIENTO",
+          "limite": 2000.0,
+          "gastado": 1200.0,
+          "porcentaje": 60.0,
+          "estado": "dentro"
+        }
+      ],
+      "analisis_ia": "El presupuesto de Transporte ha sido excedido en un 6.67%. Se recomienda evaluar alternativas de movilidad más económicas. El presupuesto de Alimentación está cerca del límite, controla los gastos en esta categoría.",
+      "recomendaciones": [
+        "Reducir gastos en transporte: considera uso de transporte público",
+        "Monitorear de cerca alimentación para no exceder el límite",
+        "Entretenimiento está bajo control"
+      ]
+    },
+    "protocol_used": "ACP"
+  },
+  "protocol_used": "ACP",
+  "agent": "Ejecutor"
+}
+```
+
+**Estados de presupuesto:**
+- `dentro`: porcentaje <= 75%
+- `cerca`: 76% <= porcentaje <= 100%
+- `excedido`: porcentaje > 100%
+
+**Protocolo usado:** ACP (comunicación estructurada)
+
+**Errores:**
+- 404: Usuario no encontrado
+- 503: Agente Ejecutor no disponible
+
+#### POST /analisis/completo
+Realiza un análisis financiero completo coordinado por el Agente Planificador, quien distribuye subtareas entre múltiples agentes.
+
+**Body (JSON):**
+```json
+{
+  "usuario_id": 1,
+  "periodo_dias": 30
+}
+```
+
+**Validaciones:**
+- `usuario_id`: integer, debe existir
+- `periodo_dias`: integer, entre 1 y 365, default 30
+
+**Respuesta:**
+```json
+{
+  "status": "success",
+  "plan": {
+    "subtareas": [
+      {
+        "id": 1,
+        "tipo": "calcular_balance",
+        "descripcion": "Calcular ingresos, gastos y balance neto del usuario",
+        "agente": "Ejecutor",
+        "prioridad": "alta"
+      },
+      {
+        "id": 2,
+        "tipo": "verificar_presupuestos",
+        "descripcion": "Revisar estado de todos los presupuestos activos",
+        "agente": "Ejecutor",
+        "prioridad": "alta"
+      },
+      {
+        "id": 3,
+        "tipo": "generar_alertas",
+        "descripcion": "Crear alertas para presupuestos excedidos",
+        "agente": "Notificador",
+        "prioridad": "media"
+      },
+      {
+        "id": 4,
+        "tipo": "analizar_patrones",
+        "descripcion": "Identificar patrones de gasto y tendencias",
+        "agente": "KnowledgeBase",
+        "prioridad": "media"
+      }
+    ],
+    "estrategia": "Análisis financiero completo mediante ejecución paralela de subtareas especializadas"
+  },
+  "protocol_used": "ANP",
+  "agent": "Planificador",
+  "message": "Plan de análisis creado. Las subtareas serán ejecutadas por los agentes correspondientes."
+}
+```
+
+**Protocolo usado:** ANP (negociación y distribución de tareas)
+
+**Errores:**
+- 404: Usuario no encontrado
+- 503: Agente Planificador no disponible
+
+#### POST /recomendaciones
+Obtiene recomendaciones financieras personalizadas e insights usando el Agente Knowledge Base con datos históricos reales.
+
+**Body (JSON):**
+```json
+{
+  "usuario_id": 1,
+  "objetivo": "optimizar_gastos"
+}
+```
+
+**Validaciones:**
+- `usuario_id`: integer, debe existir
+- `objetivo`: string, default "optimizar_gastos"
+
+**Respuesta:**
+```json
+{
+  "status": "success",
+  "insights": {
+    "status": "insights_generated",
+    "insights": {
+      "insights": [
+        "Gastos en Alimentación representan el 30% del total mensual, ligeramente por encima del promedio recomendado del 25%",
+        "Los servicios (luz, agua, internet) son tu mayor gasto fijo con $12,000 mensuales",
+        "Has mantenido un patrón de ahorro consistente del 43% durante los últimos 3 meses"
+      ],
+      "comparaciones": {
+        "gastos_vs_ingresos": "Gastas el 57% de tus ingresos mensuales, lo cual está dentro del rango saludable",
+        "categoria_mayor_gasto": "SERVICIOS"
+      },
+      "sugerencias": [
+        "Evalúa cambiar de proveedor de servicios para reducir costos fijos",
+        "Considera meal prep para reducir gastos en alimentación",
+        "Incrementa tu fondo de emergencia con el excedente de ahorro"
+      ],
+      "alertas": [
+        "El gasto en transporte aumentó 25% respecto al mes anterior"
+      ]
+    }
+  },
+  "prediccion": {
+    "status": "prediction_completed",
+    "prediccion": {
+      "predicciones": [
+        {
+          "mes": 1,
+          "gasto_estimado": 29500.0,
+          "confianza": "alta"
+        },
+        {
+          "mes": 2,
+          "gasto_estimado": 28000.0,
+          "confianza": "media"
+        },
+        {
+          "mes": 3,
+          "gasto_estimado": 30200.0,
+          "confianza": "media"
+        }
+      ],
+      "tendencia_general": "Se espera un incremento moderado en gastos debido a temporada de fin de año. Los gastos deberían estabilizarse en enero.",
+      "factores_considerados": [
+        "Promedio histórico de gastos mensuales",
+        "Estacionalidad de fin de año",
+        "Patrones de consumo recientes"
+      ]
+    },
+    "meses_futuros": 3
+  },
+  "protocol_used": "MCP",
+  "agent": "KnowledgeBase"
+}
+```
+
+**Protocolo usado:** MCP (formato estandarizado de contenido)
+
+**Errores:**
+- 404: Usuario no encontrado
+- 503: Agente Knowledge Base no disponible
+
+### Endpoint de Dashboard
+
+#### GET /dashboard/{usuario_id}
+Obtiene un dashboard completo del usuario formateado por el Agente Interfaz usando el protocolo AGUI.
+
+**Parámetros:**
+- `usuario_id` (path): integer
+
+**Respuesta:**
+```json
+{
+  "status": "success",
+  "dashboard": {
+    "protocol": "AGUI",
+    "component_type": "dashboard",
+    "data": {
+      "usuario": {
+        "nombre": "Juan Pérez",
+        "email": "juan@email.com",
+        "ingreso_mensual": 50000.0
+      },
+      "transacciones_recientes": 10,
+      "presupuestos_activos": 5,
+      "alertas_pendientes": 2
+    },
+    "style_hints": {
+      "layout": "grid",
+      "priority": "high"
+    }
+  },
+  "protocol_used": "AGUI",
+  "agent": "Interfaz"
+}
+```
+
+**Protocolo usado:** AGUI (optimización para interfaz de usuario)
+
+**Errores:**
+- 404: Usuario no encontrado
+- 503: Agente Interfaz no disponible
+
+## Ejemplo de Uso Completo
 
 ### Escenario: Usuario quiere analizar sus finanzas
 
@@ -390,7 +1079,7 @@ GET /alertas?usuario_id=1
    })
    ```
 
-## 🌐 Despliegue en Render
+## Despliegue en Render
 
 ### 1. Preparar para Producción
 
@@ -424,16 +1113,16 @@ services:
 curl https://tu-app.onrender.com/health
 ```
 
-## 📝 Conclusiones
+## Conclusiones
 
 ### Logros Principales
 
-1. ✅ **Arquitectura Multiagente Funcional**: Sistema con 6 agentes especializados trabajando en colaboración
-2. ✅ **Protocolos Implementados**: 5 protocolos diferentes (A2A, ACP, ANP, AGUI, MCP) con casos de uso específicos
-3. ✅ **Integración con IA**: Uso de Google Gemini para análisis inteligente y recomendaciones
-4. ✅ **API REST Completa**: FastAPI con documentación automática y validación de datos
-5. ✅ **Persistencia de Datos**: PostgreSQL en Render con modelos relacionales
-6. ✅ **Escalabilidad**: Diseño modular que permite agregar nuevos agentes y protocolos
+1. **Arquitectura Multiagente Funcional**: Sistema con 6 agentes especializados trabajando en colaboración
+2. **Protocolos Implementados**: 5 protocolos diferentes (A2A, ACP, ANP, AGUI, MCP) con casos de uso específicos
+3. **Integración con IA**: Uso de Google Gemini para análisis inteligente y recomendaciones
+4. **API REST Completa**: FastAPI con documentación automática y validación de datos
+5. **Persistencia de Datos**: PostgreSQL en Render con modelos relacionales
+6. **Escalabilidad**: Diseño modular que permite agregar nuevos agentes y protocolos
 
 ### Aprendizajes Clave
 
@@ -442,17 +1131,8 @@ curl https://tu-app.onrender.com/health
 - **IA como Herramienta**: Los modelos Gemini potencian las capacidades de análisis sin complejidad excesiva
 - **Diseño de APIs**: FastAPI permite desarrollo rápido con validación automática
 
-### Mejoras Futuras
 
-- [ ] Implementar autenticación JWT
-- [ ] Agregar más análisis predictivos con IA
-- [ ] Dashboard web interactivo (React/Vue)
-- [ ] Notificaciones en tiempo real (WebSockets)
-- [ ] Tests unitarios y de integración
-- [ ] Caché con Redis para optimización
-- [ ] Métricas y logging avanzado
-
-## 📚 Referencias
+## Referencias
 
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
 - [Google Gemini AI](https://ai.google.dev/)
@@ -460,7 +1140,7 @@ curl https://tu-app.onrender.com/health
 - [FIPA Agent Communication](http://www.fipa.org/specs/fipa00061/)
 - [Multi-Agent Systems](https://en.wikipedia.org/wiki/Multi-agent_system)
 
-## 📞 Contacto y Soporte
+## Contacto y Soporte
 
 Para preguntas o sugerencias sobre este proyecto:
 - Issues en GitHub
@@ -468,4 +1148,4 @@ Para preguntas o sugerencias sobre este proyecto:
 
 ---
 
-**Desarrollado con ❤️ usando FastAPI, Google Gemini AI y PostgreSQL**
+**Desarrollado usando FastAPI, Google Gemini AI y PostgreSQL**
