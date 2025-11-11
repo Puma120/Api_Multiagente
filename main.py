@@ -542,13 +542,69 @@ async def obtener_recomendaciones(request: RecomendacionRequest, db: Session = D
     if not knowledge_base:
         raise HTTPException(status_code=503, detail="Agente Knowledge Base no disponible")
     
+    # Verificar usuario
+    usuario = db.query(Usuario).filter(Usuario.id == request.usuario_id).first()
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    # Obtener transacciones de los últimos 90 días
+    fecha_desde = datetime.utcnow() - timedelta(days=90)
+    transacciones = db.query(Transaccion).filter(
+        Transaccion.usuario_id == request.usuario_id,
+        Transaccion.fecha >= fecha_desde
+    ).all()
+    
+    # Calcular estadísticas reales
+    gastos_totales = sum(t.monto for t in transacciones if t.tipo == TipoTransaccion.GASTO)
+    ingresos_totales = sum(t.monto for t in transacciones if t.tipo == TipoTransaccion.INGRESO)
+    
+    # Gastos por categoría
+    gastos_por_categoria = {}
+    for t in transacciones:
+        if t.tipo == TipoTransaccion.GASTO and t.categoria:
+            cat = t.categoria.value
+            gastos_por_categoria[cat] = gastos_por_categoria.get(cat, 0) + t.monto
+    
+    # Obtener presupuestos actuales
+    mes_actual = datetime.utcnow().month
+    anio_actual = datetime.utcnow().year
+    presupuestos = db.query(Presupuesto).filter(
+        Presupuesto.usuario_id == request.usuario_id,
+        Presupuesto.mes == mes_actual,
+        Presupuesto.anio == anio_actual
+    ).all()
+    
+    presupuestos_data = [{
+        "categoria": p.categoria.value,
+        "limite": float(p.monto_limite),
+        "gastado": float(p.monto_gastado),
+        "porcentaje": (p.monto_gastado / p.monto_limite * 100) if p.monto_limite > 0 else 0
+    } for p in presupuestos]
+    
+    # Pasar datos reales a los métodos
     insights = knowledge_base.get_spending_insights(
-        usuario_id=request.usuario_id
+        usuario_id=request.usuario_id,
+        datos_reales={
+            "total_transacciones": len(transacciones),
+            "gastos_totales": float(gastos_totales),
+            "ingresos_totales": float(ingresos_totales),
+            "gastos_por_categoria": gastos_por_categoria,
+            "presupuestos": presupuestos_data,
+            "ingreso_mensual": float(usuario.ingreso_mensual),
+            "periodo_dias": 90
+        },
+        tiene_datos=len(transacciones) > 0
     )
     
     prediccion = knowledge_base.predict_future_expenses(
         usuario_id=request.usuario_id,
-        meses_futuros=3
+        meses_futuros=3,
+        datos_reales={
+            "gastos_por_categoria": gastos_por_categoria,
+            "promedio_mensual": float(gastos_totales / 3) if gastos_totales > 0 else 0,
+            "total_transacciones": len(transacciones)
+        },
+        tiene_datos=len(transacciones) > 0
     )
     
     return {

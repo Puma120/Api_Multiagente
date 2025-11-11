@@ -187,29 +187,48 @@ class KnowledgeBaseAgent(BaseAgent):
             "protocol_used": "MCP"
         }
     
-    def get_spending_insights(self, usuario_id: int, categoria: Optional[str] = None) -> Dict[str, Any]:
+    def get_spending_insights(self, usuario_id: int, categoria: Optional[str] = None, datos_reales: Optional[Dict] = None, tiene_datos: bool = False) -> Dict[str, Any]:
         """
-        Obtener insights de gastos usando IA
+        Obtener insights de gastos usando IA con datos reales
         """
+        if not tiene_datos or not datos_reales:
+            return {
+                "status": "insights_generated",
+                "insights": {
+                    "insights": ["No hay datos suficientes para generar insights. Registra transacciones primero."],
+                    "comparaciones": {},
+                    "sugerencias": ["Comienza a registrar tus ingresos y gastos para obtener análisis personalizados"],
+                    "alertas": []
+                }
+            }
+        
+        datos_json = json.dumps(datos_reales, indent=2)
+        
         prompt = f"""
-        Proporciona insights inteligentes sobre los gastos del usuario {usuario_id}:
+        Analiza los siguientes DATOS REALES del usuario {usuario_id}:
         
-        {"Enfocado en categoría: " + categoria if categoria else "Todas las categorías"}
+        {datos_json}
         
-        Genera:
-        1. Top 3 insights más importantes
-        2. Comparación con promedios
-        3. Sugerencias de optimización
-        4. Alertas tempranas
+        {"Enfocado en categoría: " + categoria if categoria else "Análisis completo de todas las categorías"}
+        
+        Genera insights inteligentes basados en:
+        1. Patrones reales de gasto por categoría
+        2. Comparación de gastos vs ingresos
+        3. Estado de presupuestos (si hay)
+        4. Identificación de categorías problemáticas
+        5. Oportunidades de ahorro específicas
         
         IMPORTANTE: Responde SOLO con un objeto JSON válido, sin formato markdown, sin bloques de código, sin ```json ni ```. Solo el JSON puro.
         
         Formato JSON requerido:
         {{
-            "insights": ["insight 1", "insight 2", "insight 3"],
-            "comparaciones": {{}},
-            "sugerencias": ["sugerencia 1", "sugerencia 2"],
-            "alertas": []
+            "insights": ["insight 1 basado en datos reales", "insight 2", "insight 3"],
+            "comparaciones": {{
+                "gastos_vs_ingresos": "análisis comparativo",
+                "categoria_mayor_gasto": "nombre de categoría"
+            }},
+            "sugerencias": ["sugerencia específica 1", "sugerencia 2", "sugerencia 3"],
+            "alertas": ["alerta si hay algo crítico"]
         }}
         """
         
@@ -230,29 +249,46 @@ class KnowledgeBaseAgent(BaseAgent):
             "insights": insights
         }
     
-    def predict_future_expenses(self, usuario_id: int, meses_futuros: int = 3) -> Dict[str, Any]:
+    def predict_future_expenses(self, usuario_id: int, meses_futuros: int = 3, datos_reales: Optional[Dict] = None, tiene_datos: bool = False) -> Dict[str, Any]:
         """
-        Predecir gastos futuros basado en histórico
+        Predecir gastos futuros basado en datos históricos reales
         """
+        if not tiene_datos or not datos_reales:
+            return {
+                "status": "prediction_completed",
+                "prediccion": {
+                    "predicciones": [],
+                    "tendencia_general": "Datos insuficientes para realizar predicciones. Necesitas al menos 30 días de historial.",
+                    "factores_considerados": []
+                },
+                "meses_futuros": meses_futuros
+            }
+        
+        datos_json = json.dumps(datos_reales, indent=2)
+        
         prompt = f"""
         Predice los gastos futuros del usuario {usuario_id} para los próximos {meses_futuros} meses.
         
-        Basado en:
-        - Patrones históricos
-        - Estacionalidad
-        - Tendencias recientes
+        DATOS HISTÓRICOS REALES:
+        {datos_json}
+        
+        Basándote en:
+        - Promedio mensual real de gastos
+        - Distribución real por categorías
+        - Patrones identificados en los datos
+        - Estacionalidad (considera que estamos en noviembre)
         
         IMPORTANTE: Responde SOLO con un objeto JSON válido, sin formato markdown, sin bloques de código, sin ```json ni ```. Solo el JSON puro.
         
         Formato JSON requerido:
         {{
             "predicciones": [
-                {{"mes": 1, "gasto_estimado": 0, "confianza": "alta/media/baja"}},
-                {{"mes": 2, "gasto_estimado": 0, "confianza": "alta/media/baja"}},
-                {{"mes": 3, "gasto_estimado": 0, "confianza": "alta/media/baja"}}
+                {{"mes": 1, "gasto_estimado": valor_basado_en_datos_reales, "confianza": "alta/media/baja"}},
+                {{"mes": 2, "gasto_estimado": valor_basado_en_datos_reales, "confianza": "alta/media/baja"}},
+                {{"mes": 3, "gasto_estimado": valor_basado_en_datos_reales, "confianza": "alta/media/baja"}}
             ],
-            "tendencia_general": "descripción de la tendencia",
-            "factores_considerados": ["factor 1", "factor 2"]
+            "tendencia_general": "descripción basada en datos reales",
+            "factores_considerados": ["factor 1 del análisis de datos reales", "factor 2"]
         }}
         """
         
@@ -261,10 +297,15 @@ class KnowledgeBaseAgent(BaseAgent):
         try:
             prediccion = json.loads(response)
         except:
+            # Fallback con predicción básica basada en promedio real
+            promedio = datos_reales.get("promedio_mensual", 0)
             prediccion = {
-                "predicciones": [],
-                "tendencia_general": "Datos insuficientes para predicción precisa",
-                "factores_considerados": []
+                "predicciones": [
+                    {"mes": i+1, "gasto_estimado": round(promedio * (1 + i*0.05), 2), "confianza": "baja"}
+                    for i in range(meses_futuros)
+                ],
+                "tendencia_general": f"Proyección basada en promedio mensual de ${promedio:.2f}",
+                "factores_considerados": ["Promedio histórico simple"]
             }
         
         return {
