@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: finanzas-multiagente-api
+    env: python
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: finanzas_zz74
+          property: connectionString
+      - key: GOOGLE_API_KEY
+        sync: false
+    autoDeploy: true
+
+databases:
+  - name: finanzas_zz74
+    region: oregon
+    plan: free
+    databaseName: finanzas_zz74
+    user: finanzas_zz74_user
