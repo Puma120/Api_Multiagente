@@ -25,7 +25,6 @@ class KnowledgeBaseAgent(BaseAgent):
         """
         msg_type = message.get("type")
         content = message.get("content")
-        
         if msg_type == "QUERY_TRANSACTIONS":
             return self.query_transactions(content)
         elif msg_type == "QUERY_BUDGETS":
@@ -34,6 +33,82 @@ class KnowledgeBaseAgent(BaseAgent):
             return self.query_historical_data(content)
         elif msg_type == "STORE_ANALYSIS":
             return self.store_analysis(content)
+        elif msg_type == "EXECUTE_TASK":
+            # Accept tasks dispatched by Planificador
+            task = content.get("task") if isinstance(content, dict) else None
+            context = content.get("context") if isinstance(content, dict) else None
+            if not task:
+                return {"status": "error", "error": "no_task_provided"}
+
+            tipo = task.get("tipo")
+            # If context provides real data, prefer returning that instead of querying DB
+            if tipo == "analizar_patrones":
+                meses = task.get("meses_atras", 6)
+                if context and isinstance(context, dict) and context.get("datos_reales"):
+                    # Use provided historical data if available
+                    return {
+                        "status": "historical_analysis_completed",
+                        "result": {
+                            "message_id": f"KB_{datetime.utcnow().timestamp()}",
+                            "protocol": "MCP",
+                            "content_type": "historical_analysis",
+                            "data": context.get("datos_reales"),
+                            "timestamp": datetime.utcnow().isoformat()
+                        },
+                        "protocol_used": "MCP"
+                    }
+                return self.query_historical_data({"usuario_id": task.get("usuario_id"), "meses_atras": meses})
+            elif tipo == "recopilar_transacciones" or "transaccion" in tipo.lower() or "datos" in tipo.lower():
+                if context and isinstance(context, dict) and context.get("datos_reales"):
+                    return {
+                        "status": "query_completed",
+                        "result": {
+                            "message_id": f"KB_{datetime.utcnow().timestamp()}",
+                            "protocol": "MCP",
+                            "content_type": "transaction_query_result",
+                            "data": context.get("datos_reales"),
+                            "timestamp": datetime.utcnow().isoformat()
+                        },
+                        "protocol_used": "MCP"
+                    }
+                return self.query_transactions({"usuario_id": task.get("usuario_id"), "periodo_dias": task.get("periodo_dias", 30)})
+            elif tipo == "verificar_presupuestos" or "presupuesto" in tipo.lower():
+                if context and isinstance(context, dict) and context.get("presupuestos_reales"):
+                    return {
+                        "status": "query_completed",
+                        "result": {
+                            "message_id": f"KB_{datetime.utcnow().timestamp()}",
+                            "protocol": "MCP",
+                            "content_type": "budget_query_result",
+                            "data": {
+                                "usuario_id": task.get("usuario_id"),
+                                "periodo": {"mes": task.get("mes"), "anio": task.get("anio")},
+                                "presupuestos": context.get("presupuestos_reales"),
+                                "total_asignado": sum(p.get("limite", 0) for p in context.get("presupuestos_reales", [])),
+                                "total_gastado": sum(p.get("gastado", 0) for p in context.get("presupuestos_reales", []))
+                            },
+                            "timestamp": datetime.utcnow().isoformat()
+                        },
+                        "protocol_used": "MCP"
+                    }
+                return self.query_budgets({"usuario_id": task.get("usuario_id"), "mes": task.get("mes"), "anio": task.get("anio")})
+            elif tipo == "consultar_historico" or "histor" in tipo.lower():
+                return self.query_historical_data({"usuario_id": task.get("usuario_id"), "meses_atras": task.get("meses_atras", 6)})
+            else:
+                # Default: return context data if available
+                if context and isinstance(context, dict) and context.get("datos_reales"):
+                    return {
+                        "status": "query_completed",
+                        "result": {
+                            "message_id": f"KB_{datetime.utcnow().timestamp()}",
+                            "protocol": "MCP",
+                            "content_type": "generic_query_result",
+                            "data": context.get("datos_reales"),
+                            "timestamp": datetime.utcnow().isoformat()
+                        },
+                        "protocol_used": "MCP"
+                    }
+                return {"status": "unknown_task_type", "task_type": tipo}
         else:
             return {"status": "unknown_message_type", "type": msg_type}
     

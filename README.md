@@ -1,11 +1,11 @@
 # Sistema Multiagente de Finanzas Personales Inteligentes
 
-Sistema avanzado de gestión financiera personal que utiliza múltiples agentes de IA (Google Gemini) trabajando en colaboración mediante protocolos de comunicación estandarizados.
+Sistema avanzado de gestión financiera personal que utiliza múltiples agentes de IA (Google Gemini) trabajando en colaboración mediante protocolos de comunicación estandarizados. **Incluye autenticación JWT para una experiencia personalizada y segura.**
 
 ## Datos del Proyecto
 
 - **Nombre**: Sistema Multiagente de Finanzas Personales
-- **Tecnologías**: FastAPI, PostgreSQL, Google Gemini AI, SQLAlchemy
+- **Tecnologías**: FastAPI, PostgreSQL, Google Gemini AI, SQLAlchemy, JWT Authentication
 - **Fecha**: Noviembre 2025
 
 ## Introducción
@@ -17,6 +17,7 @@ Este sistema implementa un enfoque multiagente para la gestión de finanzas pers
 - Gestión automática y colaborativa de finanzas personales
 - Análisis inteligente mediante IA (Google Gemini)
 - Comunicación estructurada entre agentes usando protocolos definidos
+- **Autenticación JWT para seguridad y personalización**
 - API REST completa para integración con frontend
 - Almacenamiento persistente en PostgreSQL (Render)
 

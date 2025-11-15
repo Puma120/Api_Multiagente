@@ -32,6 +32,12 @@ class MonitorAgent(BaseAgent):
             return self.update_agent_status(content)
         elif msg_type == "SYSTEM_HEALTH_CHECK":
             return self.check_system_health()
+        elif msg_type == "EXECUTE_TASK":
+            # Soporte para tareas del Planificador
+            task = content.get("task") if isinstance(content, dict) else None
+            if task and task.get("tipo") in ["registrar_actividad", "monitorear_sistema"]:
+                return self.check_system_health()
+            return {"status": "task_executed", "task": task}
         else:
             return {"status": "unknown_message_type", "type": msg_type}
     

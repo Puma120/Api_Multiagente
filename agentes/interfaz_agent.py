@@ -29,6 +29,15 @@ class InterfazAgent(BaseAgent):
             return self.format_analysis_for_ui(content)
         elif msg_type == "DISPLAY_DASHBOARD":
             return self.create_dashboard(content)
+        elif msg_type == "EXECUTE_TASK":
+            # Soporte para tareas del Planificador
+            task = content.get("task") if isinstance(content, dict) else None
+            if task and task.get("tipo") in ["formatear_reporte", "crear_dashboard", "generar_reporte", "presentar_informe_usuario", "generar_informe_optimizacion", "crear_informe_financiero"]:
+                context = content.get("context") if isinstance(content, dict) else None
+                usuario_id = task.get("usuario_id") or (context.get("usuario_id") if context else None)
+                datos = context.get("datos_reales") if context else {}
+                return self.create_dashboard({"usuario_id": usuario_id, "datos": datos})
+            return {"status": "task_executed", "task": task}
         else:
             return {"status": "unknown_message_type", "type": msg_type}
     

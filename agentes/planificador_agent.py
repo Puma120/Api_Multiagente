@@ -44,16 +44,31 @@ class PlanificadorAgent(BaseAgent):
         Objetivo: {objetivo}
         Usuario ID: {usuario_id}
         
-        Descompón en subtareas concretas que puedan ser ejecutadas por agentes especializados.
+        AGENTES DISPONIBLES (usa EXACTAMENTE estos nombres):
+        - Ejecutor: Realiza cálculos financieros, balances, verificación de presupuestos
+        - KnowledgeBase: Consulta datos históricos, transacciones, patrones de gasto
+        - Notificador: Genera alertas y notificaciones al usuario
+        - Interfaz: Formatea datos para presentación al usuario
+        - Monitor: Supervisa el sistema y métricas
         
-        IMPORTANTE: Responde SOLO con un objeto JSON válido, sin formato markdown, sin bloques de código, sin ```json ni ```. Solo el JSON puro.
+        TIPOS DE TAREAS VÁLIDOS:
+        Para Ejecutor: calcular_balance, verificar_presupuestos, analizar_gastos
+        Para KnowledgeBase: recopilar_transacciones, analizar_patrones, consultar_historico
+        Para Notificador: generar_alertas, enviar_notificaciones
+        Para Interfaz: formatear_reporte, crear_dashboard
+        Para Monitor: registrar_actividad, monitorear_sistema
+        
+        IMPORTANTE: 
+        1. Usa SOLO los nombres de agentes listados arriba (exactamente como aparecen)
+        2. Cada subtarea debe asignarse a UN agente existente
+        3. Responde SOLO con un objeto JSON válido, sin markdown, sin ```json
         
         Formato JSON requerido:
         {{
             "subtareas": [
-                {{"id": 1, "tipo": "calcular_balance", "descripcion": "...", "agente": "Ejecutor", "prioridad": "alta"}},
-                {{"id": 2, "tipo": "verificar_presupuesto", "descripcion": "...", "agente": "Ejecutor", "prioridad": "media"}},
-                {{"id": 3, "tipo": "generar_alertas", "descripcion": "...", "agente": "Notificador", "prioridad": "media"}}
+                {{"id": 1, "tipo": "calcular_balance", "descripcion": "Calcular balance financiero del usuario", "agente": "Ejecutor", "prioridad": "alta"}},
+                {{"id": 2, "tipo": "recopilar_transacciones", "descripcion": "Obtener historial de transacciones", "agente": "KnowledgeBase", "prioridad": "alta"}},
+                {{"id": 3, "tipo": "generar_alertas", "descripcion": "Generar alertas si hay anomalías", "agente": "Notificador", "prioridad": "media"}}
             ],
             "estrategia": "descripción de la estrategia general"
         }}
@@ -77,6 +92,26 @@ class PlanificadorAgent(BaseAgent):
             }
         
         # Enviar subtareas a los agentes correspondientes usando ANP
+        # Distribuir cada subtarea al agente indicado en el plan
+        subtareas = plan.get("subtareas", []) if isinstance(plan, dict) else []
+        task_results = []
+        for tarea in subtareas:
+            agente_destino = tarea.get("agente")
+            if agente_destino:
+                # Enviar ejecución de tarea al agente destino y recoger respuesta
+                response = self.send_message(
+                    to_agent=agente_destino,
+                    protocol="ANP",
+                    message_type="EXECUTE_TASK",
+                    content={
+                        "task": tarea,
+                        "plan_estrategia": plan.get("estrategia") if isinstance(plan, dict) else None,
+                        "context": request
+                    }
+                )
+                task_results.append({"tarea": tarea, "response": response})
+
+        # También notificar al Monitor sobre la distribución
         self.send_message(
             to_agent="Monitor",
             protocol="ANP",
@@ -87,6 +122,7 @@ class PlanificadorAgent(BaseAgent):
         return {
             "status": "plan_created",
             "plan": plan,
+            "task_results": task_results,
             "protocol_used": "ANP"
         }
     

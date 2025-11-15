@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, timedelta
@@ -13,6 +14,10 @@ from models import (
     TipoTransaccion, CategoriaGasto, EstadoAlerta, NivelAlerta, TipoAgente
 )
 from config import APP_NAME, APP_VERSION, GOOGLE_API_KEY
+from auth import (
+    authenticate_user, create_access_token, get_password_hash,
+    get_current_active_user, ACCESS_TOKEN_EXPIRE_MINUTES
+)
 
 # Importar agentes
 from agentes.planificador_agent import PlanificadorAgent
@@ -64,11 +69,40 @@ def init_agents():
         interfaz = InterfazAgent()
         knowledge_base = KnowledgeBaseAgent()
         monitor = MonitorAgent()
-        logger.info("✅ Todos los agentes inicializados correctamente")
+        # Registrar agentes en el message bus para entrega de mensajes
+        try:
+            from agentes import message_bus
+            message_bus.register_agents({
+                "Planificador": planificador,
+                "Ejecutor": ejecutor,
+                "Notificador": notificador,
+                "Interfaz": interfaz,
+                "KnowledgeBase": knowledge_base,
+                "Monitor": monitor
+            })
+            logger.info("message_bus: agentes registrados")
+        except Exception as e:
+            logger.warning(f"No se pudo registrar agentes en message_bus: {e}")
+
+        logger.info("Todos los agentes inicializados correctamente")
     except Exception as e:
         logger.error(f"❌ Error al inicializar agentes: {str(e)}")
 
 # Modelos Pydantic para requests/responses
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    email: Optional[str] = None
+
+class UsuarioRegister(BaseModel):
+    nombre: str = Field(..., min_length=1, max_length=100)
+    email: str = Field(..., min_length=1, max_length=100)
+    password: str = Field(..., min_length=6, max_length=100)
+    ingreso_mensual: float = Field(default=0.0, ge=0)
+    objetivo_ahorro: float = Field(default=0.0, ge=0)
+
 class UsuarioCreate(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=100)
     email: str = Field(..., min_length=1, max_length=100)
@@ -81,6 +115,7 @@ class UsuarioResponse(BaseModel):
     email: str
     ingreso_mensual: float
     objetivo_ahorro: float
+    activo: bool
     creado_en: datetime
     
     class Config:
@@ -195,6 +230,65 @@ async def health_check():
         "timestamp": datetime.utcnow().isoformat()
     }
 
+# ===== ENDPOINTS DE AUTENTICACIÓN =====
+@app.post("/auth/register", response_model=UsuarioResponse, status_code=status.HTTP_201_CREATED)
+async def registrar_usuario(usuario: UsuarioRegister, db: Session = Depends(get_db)):
+    """Registrar nuevo usuario con autenticación"""
+    # Verificar si el email ya existe
+    existing = db.query(Usuario).filter(Usuario.email == usuario.email).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Email ya registrado")
+    
+    # Crear usuario con contraseña hasheada
+    nuevo_usuario = Usuario(
+        nombre=usuario.nombre,
+        email=usuario.email,
+        password_hash=get_password_hash(usuario.password),
+        ingreso_mensual=usuario.ingreso_mensual,
+        objetivo_ahorro=usuario.objetivo_ahorro,
+        activo=True
+    )
+    db.add(nuevo_usuario)
+    db.commit()
+    db.refresh(nuevo_usuario)
+    
+    logger.info(f"✅ Usuario registrado: {nuevo_usuario.email}")
+    return nuevo_usuario
+
+@app.post("/auth/login", response_model=Token)
+async def login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
+):
+    """Iniciar sesión y obtener token JWT"""
+    usuario = authenticate_user(db, form_data.username, form_data.password)
+    if not usuario:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email o contraseña incorrectos",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Actualizar último login
+    usuario.ultimo_login = datetime.utcnow()
+    db.commit()
+    
+    # Crear token de acceso
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": usuario.email}, expires_delta=access_token_expires
+    )
+    
+    logger.info(f"✅ Login exitoso: {usuario.email}")
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.get("/auth/me", response_model=UsuarioResponse)
+async def obtener_usuario_actual(
+    current_user: Usuario = Depends(get_current_active_user)
+):
+    """Obtener información del usuario autenticado"""
+    return current_user
+
 # ===== ENDPOINTS DE USUARIOS =====
 @app.post("/usuarios", response_model=UsuarioResponse, status_code=status.HTTP_201_CREATED)
 async def crear_usuario(usuario: UsuarioCreate, db: Session = Depends(get_db)):
@@ -228,11 +322,21 @@ async def obtener_usuario(usuario_id: int, db: Session = Depends(get_db)):
 
 # ===== ENDPOINTS DE TRANSACCIONES =====
 @app.post("/transacciones", response_model=TransaccionResponse, status_code=status.HTTP_201_CREATED)
-async def crear_transaccion(transaccion: TransaccionCreate, db: Session = Depends(get_db)):
+async def crear_transaccion(
+    transaccion: TransaccionCreate,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_active_user)
+):
     """
-    Crear nueva transacción
+    Crear nueva transacción (requiere autenticación)
     Usa protocolo A2A para notificar al Ejecutor
     """
+    # Verificar que el usuario solo pueda crear transacciones para sí mismo
+    if transaccion.usuario_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permiso para crear transacciones para otro usuario"
+        )
     # Verificar que el usuario existe
     usuario = db.query(Usuario).filter(Usuario.id == transaccion.usuario_id).first()
     if not usuario:
@@ -408,11 +512,21 @@ async def marcar_alerta_leida(alerta_id: int, db: Session = Depends(get_db)):
 
 # ===== ENDPOINTS DE ANÁLISIS CON IA =====
 @app.post("/analisis/balance")
-async def analizar_balance(request: AnalisisRequest, db: Session = Depends(get_db)):
+async def analizar_balance(
+    request: AnalisisRequest,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_active_user)
+):
     """
-    Analizar balance financiero usando Agente Ejecutor
+    Analizar balance financiero usando Agente Ejecutor (requiere autenticación)
     Usa protocolo ACP para comunicación estructurada
     """
+    # Verificar que el usuario solo pueda analizar su propio balance
+    if request.usuario_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permiso para analizar otro usuario"
+        )
     if not ejecutor:
         raise HTTPException(status_code=503, detail="Agente Ejecutor no disponible")
     
@@ -439,34 +553,70 @@ async def analizar_balance(request: AnalisisRequest, db: Session = Depends(get_d
             cat = t.categoria.value
             gastos_por_categoria[cat] = gastos_por_categoria.get(cat, 0) + t.monto
     
-    # Solicitar análisis usando protocolo ACP con datos reales
-    resultado = ejecutor.calculate_balance({
-        "usuario_id": request.usuario_id,
-        "periodo_dias": request.periodo_dias,
-        "datos_reales": {
-            "ingresos_totales": float(ingresos_totales),
-            "gastos_totales": float(gastos_totales),
-            "balance": float(ingresos_totales - gastos_totales),
-            "total_transacciones": len(transacciones),
-            "gastos_por_categoria": gastos_por_categoria,
-            "ingreso_mensual": float(usuario.ingreso_mensual)
-        },
-        "tiene_datos": len(transacciones) > 0
-    })
-    
-    return {
-        "status": "success",
-        "analisis": resultado,
-        "protocol_used": "ACP",
-        "agent": "Ejecutor"
-    }
+    # Enviar la solicitud al Planificador para que distribuya la tarea (ANP)
+    if planificador:
+        plan_request = {
+            "usuario_id": request.usuario_id,
+            "objetivo": "calcular_balance",
+            "datos_reales": {
+                "ingresos_totales": float(ingresos_totales),
+                "gastos_totales": float(gastos_totales),
+                "balance": float(ingresos_totales - gastos_totales),
+                "total_transacciones": len(transacciones),
+                "gastos_por_categoria": gastos_por_categoria,
+                "ingreso_mensual": float(usuario.ingreso_mensual)
+            },
+            "tiene_datos": len(transacciones) > 0
+        }
+
+        plan = planificador.create_financial_plan(plan_request)
+        return {
+            "status": "success",
+            "plan": plan,
+            "protocol_used": "ANP",
+            "agent": "Planificador",
+            "message": "Plan de análisis creado y subtareas ejecutadas por los agentes. Revisa 'task_results' para resultados individuales."
+        }
+    else:
+        # Fallback directo al Ejecutor si el Planificador no está disponible
+        resultado = ejecutor.calculate_balance({
+            "usuario_id": request.usuario_id,
+            "periodo_dias": request.periodo_dias,
+            "datos_reales": {
+                "ingresos_totales": float(ingresos_totales),
+                "gastos_totales": float(gastos_totales),
+                "balance": float(ingresos_totales - gastos_totales),
+                "total_transacciones": len(transacciones),
+                "gastos_por_categoria": gastos_por_categoria,
+                "ingreso_mensual": float(usuario.ingreso_mensual)
+            },
+            "tiene_datos": len(transacciones) > 0
+        })
+
+        return {
+            "status": "success",
+            "analisis": resultado,
+            "protocol_used": "ACP",
+            "agent": "Ejecutor",
+            "message": "Planificador no disponible; análisis ejecutado directamente por Ejecutor."
+        }
 
 @app.post("/analisis/presupuestos")
-async def analizar_presupuestos(request: AnalisisRequest, db: Session = Depends(get_db)):
+async def analizar_presupuestos(
+    request: AnalisisRequest,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_active_user)
+):
     """
-    Verificar estado de presupuestos usando Agente Ejecutor
+    Verificar estado de presupuestos usando Agente Ejecutor (requiere autenticación)
     Usa protocolo ACP
     """
+    # Verificar que el usuario solo pueda analizar sus propios presupuestos
+    if request.usuario_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permiso para analizar otro usuario"
+        )
     if not ejecutor:
         raise HTTPException(status_code=503, detail="Agente Ejecutor no disponible")
     
@@ -496,26 +646,55 @@ async def analizar_presupuestos(request: AnalisisRequest, db: Session = Depends(
             "porcentaje": round(porcentaje, 2)
         })
     
-    # Pasar datos reales al agente
-    resultado = ejecutor.verify_budgets({
-        "usuario_id": request.usuario_id,
-        "presupuestos_reales": presupuestos_data,
-        "tiene_datos": len(presupuestos_data) > 0
-    })
-    
-    return {
-        "status": "success",
-        "analisis": resultado,
-        "protocol_used": "ACP",
-        "agent": "Ejecutor"
-    }
+    # Enviar la verificación de presupuestos al Planificador para orquestación (ANP)
+    if planificador:
+        plan_request = {
+            "usuario_id": request.usuario_id,
+            "objetivo": "verificar_presupuestos",
+            "presupuestos_reales": presupuestos_data,
+            "tiene_datos": len(presupuestos_data) > 0
+        }
+
+        plan = planificador.create_financial_plan(plan_request)
+        return {
+            "status": "success",
+            "plan": plan,
+            "protocol_used": "ANP",
+            "agent": "Planificador",
+            "message": "Plan de verificación creado y subtareas ejecutadas por los agentes. Revisa 'task_results' para resultados individuales."
+        }
+    else:
+        # Fallback directo al Ejecutor si el Planificador no está disponible
+        resultado = ejecutor.verify_budgets({
+            "usuario_id": request.usuario_id,
+            "presupuestos_reales": presupuestos_data,
+            "tiene_datos": len(presupuestos_data) > 0
+        })
+
+        return {
+            "status": "success",
+            "analisis": resultado,
+            "protocol_used": "ACP",
+            "agent": "Ejecutor",
+            "message": "Planificador no disponible; verificación ejecutada directamente por Ejecutor."
+        }
 
 @app.post("/analisis/completo")
-async def analisis_completo(request: AnalisisRequest, db: Session = Depends(get_db)):
+async def analisis_completo(
+    request: AnalisisRequest,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_active_user)
+):
     """
-    Análisis financiero completo coordinado por Planificador
+    Análisis financiero completo coordinado por Planificador (requiere autenticación)
     Usa protocolo ANP para distribuir tareas entre agentes
     """
+    # Verificar que el usuario solo pueda analizar su propia información
+    if request.usuario_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permiso para analizar otro usuario"
+        )
     if not planificador:
         raise HTTPException(status_code=503, detail="Agente Planificador no disponible")
     
@@ -534,11 +713,21 @@ async def analisis_completo(request: AnalisisRequest, db: Session = Depends(get_
     }
 
 @app.post("/recomendaciones")
-async def obtener_recomendaciones(request: RecomendacionRequest, db: Session = Depends(get_db)):
+async def obtener_recomendaciones(
+    request: RecomendacionRequest,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_active_user)
+):
     """
-    Obtener recomendaciones financieras usando Knowledge Base
+    Obtener recomendaciones financieras usando Knowledge Base (requiere autenticación)
     Usa protocolo MCP para formato estandarizado
     """
+    # Verificar que el usuario solo pueda obtener sus propias recomendaciones
+    if request.usuario_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permiso para obtener recomendaciones de otro usuario"
+        )
     if not knowledge_base:
         raise HTTPException(status_code=503, detail="Agente Knowledge Base no disponible")
     
@@ -581,47 +770,84 @@ async def obtener_recomendaciones(request: RecomendacionRequest, db: Session = D
         "porcentaje": (p.monto_gastado / p.monto_limite * 100) if p.monto_limite > 0 else 0
     } for p in presupuestos]
     
-    # Pasar datos reales a los métodos
-    insights = knowledge_base.get_spending_insights(
-        usuario_id=request.usuario_id,
-        datos_reales={
-            "total_transacciones": len(transacciones),
-            "gastos_totales": float(gastos_totales),
-            "ingresos_totales": float(ingresos_totales),
-            "gastos_por_categoria": gastos_por_categoria,
-            "presupuestos": presupuestos_data,
-            "ingreso_mensual": float(usuario.ingreso_mensual),
-            "periodo_dias": 90
-        },
-        tiene_datos=len(transacciones) > 0
-    )
-    
-    prediccion = knowledge_base.predict_future_expenses(
-        usuario_id=request.usuario_id,
-        meses_futuros=3,
-        datos_reales={
-            "gastos_por_categoria": gastos_por_categoria,
-            "promedio_mensual": float(gastos_totales / 3) if gastos_totales > 0 else 0,
-            "total_transacciones": len(transacciones)
-        },
-        tiene_datos=len(transacciones) > 0
-    )
-    
-    return {
-        "status": "success",
-        "insights": insights,
-        "prediccion": prediccion,
-        "protocol_used": "MCP",
-        "agent": "KnowledgeBase"
-    }
+    # Orquestar la obtención de recomendaciones mediante el Planificador (ANP)
+    if planificador:
+        plan_request = {
+            "usuario_id": request.usuario_id,
+            "objetivo": request.objetivo or "obtener_recomendaciones",
+            "datos_reales": {
+                "total_transacciones": len(transacciones),
+                "gastos_totales": float(gastos_totales),
+                "ingresos_totales": float(ingresos_totales),
+                "gastos_por_categoria": gastos_por_categoria,
+                "presupuestos": presupuestos_data,
+                "ingreso_mensual": float(usuario.ingreso_mensual),
+                "periodo_dias": 90
+            },
+            "tiene_datos": len(transacciones) > 0
+        }
+
+        plan = planificador.create_financial_plan(plan_request)
+        return {
+            "status": "success",
+            "plan": plan,
+            "protocol_used": "ANP",
+            "agent": "Planificador",
+            "message": "Plan de recomendaciones creado y subtareas ejecutadas por los agentes. Revisa 'task_results' para resultados individuales."
+        }
+    else:
+        # Fallback directo al KnowledgeBase si el Planificador no está disponible
+        insights = knowledge_base.get_spending_insights(
+            usuario_id=request.usuario_id,
+            datos_reales={
+                "total_transacciones": len(transacciones),
+                "gastos_totales": float(gastos_totales),
+                "ingresos_totales": float(ingresos_totales),
+                "gastos_por_categoria": gastos_por_categoria,
+                "presupuestos": presupuestos_data,
+                "ingreso_mensual": float(usuario.ingreso_mensual),
+                "periodo_dias": 90
+            },
+            tiene_datos=len(transacciones) > 0
+        )
+
+        prediccion = knowledge_base.predict_future_expenses(
+            usuario_id=request.usuario_id,
+            meses_futuros=3,
+            datos_reales={
+                "gastos_por_categoria": gastos_por_categoria,
+                "promedio_mensual": float(gastos_totales / 3) if gastos_totales > 0 else 0,
+                "total_transacciones": len(transacciones)
+            },
+            tiene_datos=len(transacciones) > 0
+        )
+
+        return {
+            "status": "success",
+            "insights": insights,
+            "prediccion": prediccion,
+            "protocol_used": "MCP",
+            "agent": "KnowledgeBase",
+            "message": "Planificador no disponible; recomendaciones calculadas directamente por KnowledgeBase."
+        }
 
 # ===== ENDPOINTS DE INTERFAZ =====
 @app.get("/dashboard/{usuario_id}")
-async def obtener_dashboard(usuario_id: int, db: Session = Depends(get_db)):
+async def obtener_dashboard(
+    usuario_id: int,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_active_user)
+):
     """
-    Obtener dashboard completo del usuario
+    Obtener dashboard completo del usuario (requiere autenticación)
     Usa protocolo AGUI para formato de interfaz
     """
+    # Verificar que el usuario solo pueda ver su propio dashboard
+    if usuario_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permiso para ver el dashboard de otro usuario"
+        )
     if not interfaz:
         raise HTTPException(status_code=503, detail="Agente Interfaz no disponible")
     

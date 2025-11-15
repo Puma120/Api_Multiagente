@@ -44,8 +44,11 @@ class Usuario(Base):
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(100), nullable=False)
     email = Column(String(100), unique=True, index=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
     ingreso_mensual = Column(Float, default=0.0)
     objetivo_ahorro = Column(Float, default=0.0)
+    activo = Column(Boolean, default=True)
+    ultimo_login = Column(DateTime, nullable=True)
     creado_en = Column(DateTime, default=datetime.utcnow)
     actualizado_en = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

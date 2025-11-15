@@ -51,7 +51,14 @@ class BaseAgent:
             "timestamp": datetime.utcnow().isoformat()
         }
         self.log_message(protocol, f"SEND-{message_type}", content)
-        return message
+        try:
+            # Delivery via message bus to ensure inter-agent collaboration
+            from agentes import message_bus
+            response = message_bus.deliver(message)
+            return response
+        except Exception:
+            # Fallback: return the message if bus not available
+            return message
     
     def receive_message(self, message: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """

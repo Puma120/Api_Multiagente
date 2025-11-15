@@ -37,7 +37,24 @@ class EjecutorAgent(BaseAgent):
         """
         Ejecutar tarea financiera específica
         """
-        task_type = task.get("tipo")
+        # Support both direct task dict or wrapper {"task": {...}}
+        context = None
+        if isinstance(task, dict) and "task" in task:
+            # Keep wrapper context if present
+            context = task.get("context")
+            task = task.get("task")
+
+        # Merge relevant context data into the task so agents receive datos_reales
+        if context and isinstance(context, dict):
+            # Common keys: datos_reales, presupuestos_reales, tiene_datos
+            if "datos_reales" in context and isinstance(context.get("datos_reales"), dict):
+                task["datos_reales"] = context.get("datos_reales")
+            if "presupuestos_reales" in context:
+                task["presupuestos_reales"] = context.get("presupuestos_reales")
+            if "tiene_datos" in context:
+                task["tiene_datos"] = context.get("tiene_datos")
+
+        task_type = task.get("tipo") if isinstance(task, dict) else None
         
         if task_type == "calcular_balance":
             return self.calculate_balance(task)
@@ -45,6 +62,16 @@ class EjecutorAgent(BaseAgent):
             return self.verify_budgets(task)
         elif task_type == "analizar_gastos":
             return self.analyze_expenses(task)
+        elif task_type in ["obtener_ingresos", "obtener_gastos", "calcular_total_ingresos", 
+                            "calcular_total_gastos", "calcular_balance_final", "comparar_gastos_presupuesto",
+                            "calcular_ratio_endeudamiento", "calcular_ingresos_netos", "calcular_porcentaje_ahorro"]:
+            # Mapear tareas genéricas a métodos específicos
+            if "balance" in task_type or "ingresos" in task_type or "gastos" in task_type:
+                return self.calculate_balance(task)
+            elif "presupuesto" in task_type:
+                return self.verify_budgets(task)
+            else:
+                return self.analyze_expenses(task)
         else:
             return {"status": "unknown_task_type", "task_type": task_type}
     
@@ -72,13 +99,15 @@ class EjecutorAgent(BaseAgent):
             }
         
         # Enviar mensaje a Knowledge Base (protocolo ACP)
+        # Enviar mensaje a Knowledge Base (protocolo ACP) y adjuntar contexto de datos reales
         self.send_message(
             to_agent="KnowledgeBase",
             protocol="ACP",
             message_type="QUERY_TRANSACTIONS",
             content={
                 "usuario_id": usuario_id,
-                "periodo_dias": periodo_dias
+                "periodo_dias": periodo_dias,
+                "context": {"datos_reales": datos_reales, "tiene_datos": tiene_datos}
             }
         )
         

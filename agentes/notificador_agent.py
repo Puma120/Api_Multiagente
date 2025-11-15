@@ -27,8 +27,16 @@ class NotificadorAgent(BaseAgent):
         
         if msg_type == "ALERT_REQUIRED":
             return self.create_alert(content)
-        elif msg_type == "GENERATE_NOTIFICATION":
-            return self.generate_notification(content)
+        elif msg_type == "SEND_NOTIFICATION":
+            return self.send_notification(content)
+        elif msg_type == "EXECUTE_TASK":
+            # Soporte para tareas del Planificador
+            task = content.get("task") if isinstance(content, dict) else None
+            if task and task.get("tipo") in ["generar_alertas", "enviar_notificaciones"]:
+                context = content.get("context") if isinstance(content, dict) else None
+                usuario_id = task.get("usuario_id") or (context.get("usuario_id") if context else None)
+                return self.create_alert({"usuario_id": usuario_id, "tipo": "tarea_completada", "datos": task})
+            return {"status": "task_executed", "task": task}
         else:
             return {"status": "unknown_message_type", "type": msg_type}
     
